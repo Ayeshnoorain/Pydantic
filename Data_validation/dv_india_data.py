@@ -1,9 +1,6 @@
-import csv
 from datetime import date, time, datetime
 from typing import Optional, List
-
-from pydantic import BaseModel, ValidationError, field_validator
-from pydantic.fields import Field
+from pydantic import BaseModel, field_validator, Field
 
 
 class SurveyRecord(BaseModel):
@@ -12,20 +9,23 @@ class SurveyRecord(BaseModel):
     mid: Optional[str]
     mid2: Optional[str]
     sessionid: Optional[str]
+    #date: date = Field(..., description="The date in a specific format (e.g., YYYY-MM-DD)")
     dayMonth: int
     weekday: int
     weeknum: int
     month: int
     quarter: int
     year: int
-    date: date = Field(..., description="The date in a specific format (e.g., YYYY-MM-DD)")
-    time: time
     q888811_2: str
+    missing_column: str
+    present_empty: str
+
 
     @field_validator("user_id")
     def validate_user_id(cls, value):
         if not all(char.isalnum() or char in {'_', '-'} for char in value):
             raise ValueError("User ID must be alphanumeric and can include underscores and hyphens")
+        # print(value)
         return value
 
     @field_validator("mid", "mid2", "sessionid")
@@ -52,48 +52,39 @@ class SurveyRecord(BaseModel):
             raise ValueError("Quarter value must be between 1 and 4")
         return value
 
+
     @field_validator("year")
     def validate_year(cls, value):
-        if value < 2000:  # Assuming surveys started from the year 2000
+        if value != 2023:  # Assuming surveys started from the year 2023
             raise ValueError("Year is out of the valid range")
         return value
 
-    @field_validator("date")
-    def parse_date(cls, value):
-        if isinstance(value, str):
-            try:
-                # Parse the string using the expected date format
-                return datetime.strptime(value, '%d/%m/%Y').date()
-                print('AAAA')
-            except ValueError:
-                # Raise a ValueError if the format does not match
-                raise ValueError("Invalid date format, expected DD/MM/YYYY")
-        elif not isinstance(value, date):
-            # Additional check to ensure the value is a date if it's not a string
-            raise ValueError("Invalid type for date")
-        return value
+    @field_validator("missing_column")
+    def check_q1234_1_exists(cls, v):
+        if v is None:
+            raise ValueError("Field is a required and it is missing")
+        return v
 
 
-if __name__ == '__main__':
+    @field_validator("present_empty")
+    def check_q1230000003_non_empty(cls, v):
+        if v == " ":
+            raise ValueError("field is present but empty, which is not allowed")
+        return v
 
-    # Step 2: Function to read and parse the CSV file
-    file_path = r'C:\Users\ayesha.noorain\PycharmProjects\PydanticProject\Dataset.csv'
 
-    def read_csv(file_path: str) -> List[SurveyRecord]:
-        records = []
-        with open(file_path, mode='r', encoding='cp1252') as file:
-            reader = csv.DictReader(file)
-            for i, row in enumerate(reader):
-                try:
-                    record = SurveyRecord(**row)
-                    records.append(record)
-                except ValidationError as e:
-                    print(f"Error parsing record: {e}")
-        return records
+    # @field_validator("date", pre=True)
+    # def parse_date(cls, value):
+    #     if isinstance(value, str):
+    #         try:
+    #             # Parse the string using the expected date format
+    #             return datetime.strptime(value, '%d/%m/%Y').date()
+    #         except ValueError:
+    #             # Raise a ValueError if the format does not match
+    #             raise ValueError("Invalid date format, expected DD/MM/YYYY")
+    #     elif not isinstance(value, date):
+    #         # Additional check to ensure the value is a date if it's not a string
+    #         raise ValueError("Invalid type for date")
+    #     print(value)
+    #     return value
 
-    # Step 3: Read the file and process records
-    records = read_csv(file_path)
-
-    # Example usage: Print the parsed records
-    for record in records:
-        print(record)
